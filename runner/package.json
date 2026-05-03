@@ -1,0 +1,9 @@
+{
+  "name": "qa-runner",
+  "private": true,
+  "dependencies": {
+    "jsdom": "^22.0.0",
+    "mocha": "^10.2.0",
+    "chai": "^4.3.7"
+  }
+}
