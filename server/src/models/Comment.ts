@@ -8,6 +8,7 @@ export interface IComment extends Document {
   type: CommentType;
   content: string;
   code?: string;
+  parentId?: mongoose.Types.ObjectId; // ID родительского комментария (для ответов)
   isPublic: boolean;
   likes: mongoose.Types.ObjectId[];
   createdAt: Date;
@@ -20,6 +21,7 @@ const commentSchema = new Schema<IComment>({
   type: { type: String, enum: ['COMMENT', 'SOLUTION'], required: true },
   content: { type: String, required: true },
   code: { type: String },
+  parentId: { type: Schema.Types.ObjectId, ref: 'Comment', default: null },
   isPublic: { type: Boolean, default: true },
   likes: [{ type: Schema.Types.ObjectId, ref: 'User' }],
 }, { timestamps: true });
