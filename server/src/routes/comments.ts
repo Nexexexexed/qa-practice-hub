@@ -126,7 +126,7 @@ router.post('/tasks/:taskId/solutions', authenticate, async (req, res) => {
 
   const comment = new Comment({
     taskId,
-    userId,
+    userId: (req as any).user.userId,
     type: 'SOLUTION',
     content,
     code: successSolution.code,

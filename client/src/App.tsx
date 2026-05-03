@@ -9,6 +9,7 @@ import RegisterPage from './pages/RegisterPage'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ProfilePage from './pages/ProfilePage'
+import TaskPage from './pages/TaskPage'
 
 function App() {
   const dispatch = useAppDispatch()
@@ -27,8 +28,9 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
-          <Route path="*" element={<NotFoundPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/tasks/:id" element={<TaskPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
     </BrowserRouter>
