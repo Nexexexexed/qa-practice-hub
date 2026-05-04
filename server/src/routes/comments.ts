@@ -27,12 +27,19 @@ router.get('/tasks/:taskId/comments', async (req, res) => {
   const { taskId } = req.params;
   const { type } = req.query;
 
-  const filter: any = { taskId, isPublic: true };
+  const filter: any = { taskId, isPublic: true, parentId: null }; // только корневые
   if (type) filter.type = type;
 
   const comments = await Comment.find(filter)
     .populate('userId', 'username')
+    .populate({
+      path: 'replies',
+      match: { isPublic: true },
+      options: { sort: { createdAt: 1 } },
+      populate: { path: 'userId', select: 'username' }
+    })
     .sort({ createdAt: -1 });
+
   res.json(comments);
 });
 
@@ -41,7 +48,62 @@ router.get('/tasks/:taskId/comments', async (req, res) => {
  * /tasks/{taskId}/comments:
  *   post:
  *     tags: [Comments]
- *     summary: Оставить комментарий к задаче
+ *     summary: Оставить комментарий или ответ
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: taskId
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [content]
+ *             properties:
+ *               content: { type: string }
+ *               parentId: { type: string, description: 'ID родительского комментария для ответа' }
+ *     responses:
+ *       201: { description: Комментарий создан }
+ */
+router.post('/tasks/:taskId/comments', authenticate, async (req, res) => {
+  const { taskId } = req.params;
+  const { content, parentId } = req.body;
+  if (!content) return res.status(400).json({ error: 'Content required' });
+
+  const task = await Task.findById(taskId);
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+
+  // Если это ответ, проверяем существование родителя
+  if (parentId) {
+    const parent = await Comment.findById(parentId);
+    if (!parent) return res.status(404).json({ error: 'Parent comment not found' });
+  }
+
+  const comment = new Comment({
+    taskId,
+    userId: (req as any).user.userId,
+    type: 'COMMENT',
+    content,
+    parentId: parentId || null,
+  });
+  await comment.save();
+
+  const populated = await Comment.findById(comment._id)
+    .populate('userId', 'username');
+    
+  res.status(201).json(populated);
+});
+
+/**
+ * @openapi
+ * /tasks/{taskId}/solutions:
+ *   post:
+ *     tags: [Comments]
+ *     summary: Опубликовать решение задачи
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -59,81 +121,32 @@ router.get('/tasks/:taskId/comments', async (req, res) => {
  *             properties:
  *               content: { type: string }
  *     responses:
- *       201: { description: Комментарий создан }
- */
-router.post('/tasks/:taskId/comments', authenticate, async (req, res) => {
-  const { taskId } = req.params;
-  const { content } = req.body;
-  if (!content) return res.status(400).json({ error: 'Content required' });
-
-  const task = await Task.findById(taskId);
-  if (!task) return res.status(404).json({ error: 'Task not found' });
-
-  const comment = new Comment({
-    taskId,
-    userId: (req as any).user.userId,
-    type: 'COMMENT',
-    content,
-  });
-  await comment.save();
-
-  const populated = await Comment.findById(comment._id).populate('userId', 'username');
-  res.status(201).json(populated);
-});
-
-/**
- * @openapi
- * /tasks/{taskId}/solutions:
- *   post:
- *     tags: [Comments]
- *     summary: Опубликовать решение задачи (только после успешного выполнения)
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: taskId
- *         required: true
- *         schema: { type: string }
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required: [content]
- *             properties:
- *               content: { type: string, description: 'Описание решения' }
- *     responses:
  *       201: { description: Решение опубликовано }
- *       400: { description: Нельзя опубликовать решение (не решена задача или уже опубликовано) }
+ *       400: { description: Нельзя опубликовать решение }
  */
 router.post('/tasks/:taskId/solutions', authenticate, async (req, res) => {
   const { taskId } = req.params;
   const { content } = req.body;
   const userId = (req as any).user.userId;
 
-  // Проверяем, есть ли успешное решение
-  const successSolution = await Solution.findOne({
-    userId,
-    taskId,
-    status: 'COMPLETED',
-  });
+  const successSolution = await Solution.findOne({ userId, taskId, status: 'COMPLETED' });
   if (!successSolution) return res.status(400).json({ error: 'You must solve the task first' });
 
-  // Проверяем, не публиковал ли уже решение
   const existing = await Comment.findOne({ taskId, userId, type: 'SOLUTION' });
-  if (existing) return res.status(400).json({ error: 'You have already published a solution for this task' });
+  if (existing) return res.status(400).json({ error: 'You have already published a solution' });
 
   const comment = new Comment({
     taskId,
-    userId: (req as any).user.userId,
+    userId,
     type: 'SOLUTION',
     content,
     code: successSolution.code,
   });
   await comment.save();
 
-  const populated = await Comment.findById(comment._id).populate('userId', 'username');
+  const populated = await Comment.findById(comment._id)
+    .populate('userId', 'username');
+    
   res.status(201).json(populated);
 });
 
@@ -142,7 +155,7 @@ router.post('/tasks/:taskId/solutions', authenticate, async (req, res) => {
  * /comments/{id}/like:
  *   post:
  *     tags: [Comments]
- *     summary: Лайкнуть комментарий/решение
+ *     summary: Лайкнуть/анлайкнуть комментарий
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -151,7 +164,7 @@ router.post('/tasks/:taskId/solutions', authenticate, async (req, res) => {
  *         required: true
  *         schema: { type: string }
  *     responses:
- *       200: { description: Лайк поставлен/убран }
+ *       200: { description: Состояние лайка }
  */
 router.post('/comments/:id/like', authenticate, async (req, res) => {
   const userId = (req as any).user.userId;
@@ -165,7 +178,11 @@ router.post('/comments/:id/like', authenticate, async (req, res) => {
     comment.likes.push(userId as any);
   }
   await comment.save();
-  res.json({ likes: comment.likes.length, liked: likeIndex === -1 });
+  
+  res.json({ 
+    likes: comment.likes.length, 
+    liked: likeIndex === -1 
+  });
 });
 
 /**
@@ -173,7 +190,7 @@ router.post('/comments/:id/like', authenticate, async (req, res) => {
  * /comments/{id}:
  *   delete:
  *     tags: [Comments]
- *     summary: Удалить комментарий (автор)
+ *     summary: Удалить комментарий (автор или админ)
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -188,10 +205,17 @@ router.post('/comments/:id/like', authenticate, async (req, res) => {
 router.delete('/comments/:id', authenticate, async (req, res) => {
   const comment = await Comment.findById(req.params.id);
   if (!comment) return res.status(404).json({ error: 'Comment not found' });
-  if (comment.userId.toString() !== (req as any).user.userId) {
-    return res.status(403).json({ error: 'Not your comment' });
+  
+  const isAuthor = comment.userId.toString() === (req as any).user.userId;
+  const isAdmin = (req as any).user.role === 'admin';
+  
+  if (!isAuthor && !isAdmin) {
+    return res.status(403).json({ error: 'Not authorized to delete this comment' });
   }
-  await Comment.findByIdAndDelete(req.params.id);
+  
+  // Удаляем сам комментарий и все ответы на него
+  await Comment.deleteMany({ $or: [{ _id: comment._id }, { parentId: comment._id }] });
+  
   res.status(204).end();
 });
 

@@ -10,6 +10,7 @@ import VerifyEmailPage from './pages/VerifyEmailPage'
 import NotFoundPage from './pages/NotFoundPage'
 import ProfilePage from './pages/ProfilePage'
 import TaskPage from './pages/TaskPage'
+import AdminPage from './pages/AdminPage'
 
 function App() {
   const dispatch = useAppDispatch()
@@ -31,6 +32,7 @@ function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/tasks/:id" element={<TaskPage />} />
           <Route path="*" element={<NotFoundPage />} />
+          <Route path="/admin-panel" element={<AdminPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

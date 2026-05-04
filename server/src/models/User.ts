@@ -9,6 +9,7 @@ export interface IUser extends Document {
   emailVerified: boolean;
   emailVerificationToken?: string;
   refreshToken?: string;
+  isActive: boolean;
   comparePassword: (pw: string) => Promise<boolean>;
 }
 
@@ -20,6 +21,7 @@ const userSchema = new Schema<IUser>({
   emailVerified: { type: Boolean, default: false },
   emailVerificationToken: { type: String },
   refreshToken: { type: String },
+  isActive: { type: Boolean, default: true },
 });
 
 userSchema.methods.comparePassword = function (password: string) {

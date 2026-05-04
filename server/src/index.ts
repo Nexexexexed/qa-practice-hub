@@ -8,6 +8,7 @@ import authRoutes from './routes/auth';
 import taskRoutes from './routes/tasks';
 import solutionRoutes from './routes/solutions';
 import commentRoutes from './routes/comments';
+import adminRoutes from './routes/admin';
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api', solutionRoutes); 
 app.use('/api', commentRoutes);
+app.use('/api/admin', adminRoutes);
 
 mongoose.connect(process.env.MONGODB_URI!)
   .then(() => console.log('MongoDB connected'))

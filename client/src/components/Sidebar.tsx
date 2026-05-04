@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Code2, LogIn, UserPlus, LogOut } from 'lucide-react'
+import { Code2, LogIn, UserPlus, LogOut, Shield } from 'lucide-react'
 import { useAppSelector, useAppDispatch } from '../store/hooks'
 import { logoutUser } from '../store/authSlice'
 
@@ -43,6 +43,9 @@ const Sidebar = () => {
       {/* Главная навигация */}
       <nav className="flex-1 flex flex-col items-center space-y-2">
         <NavItem to="/" icon={Code2} label="Задачи" />
+        {user?.role === 'admin' && (
+          <NavItem to="/admin-panel" icon={Shield} label="Админ-панель" />
+        )}
       </nav>
 
       {/* Нижняя часть */}

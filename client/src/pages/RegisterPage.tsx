@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '../store/hooks'
 import { registerUser, clearError } from '../store/authSlice'
+import { AlertModal } from '../components/Modal'
 
 const RegisterPage = () => {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [alert, setAlert] = useState<{ title: string; message: string; type: 'info' | 'success' | 'error' } | null>(null)
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { loading, error } = useAppSelector((state) => state.auth)
@@ -17,13 +19,15 @@ const RegisterPage = () => {
     dispatch(clearError())
 
     if (password !== confirmPassword) {
-      alert('Пароли не совпадают')
+      setAlert({ title: 'Ошибка', message: 'Пароли не совпадают', type: 'error' })
       return
     }
 
     const result = await dispatch(registerUser({ username, email, password }))
     if (registerUser.fulfilled.match(result)) {
-      navigate('/')
+      setAlert({ title: 'Успешно', message: 'Регистрация прошла успешно! Проверьте почту для подтверждения.', type: 'success' })
+      // Перенаправляем через небольшую задержку, чтобы пользователь увидел сообщение
+      setTimeout(() => navigate('/'), 1500)
     }
   }
 
@@ -34,7 +38,7 @@ const RegisterPage = () => {
         onSubmit={handleSubmit}
         className="bg-[var(--color-surface-alt)] rounded-xl p-6 border border-[var(--color-border)] space-y-4"
       >
-        {error && <div className="text-red-400 text-sm">{error}</div>}
+        {error && <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg p-3">{error}</div>}
 
         <div>
           <label className="block text-sm text-[var(--color-text-muted)] mb-1">
@@ -44,7 +48,7 @@ const RegisterPage = () => {
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-[var(--color-text)] focus:outline-none focus:border-brand"
+            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-[var(--color-text)] focus:outline-none focus:border-brand transition-colors"
             required
           />
         </div>
@@ -57,7 +61,7 @@ const RegisterPage = () => {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-[var(--color-text)] focus:outline-none focus:border-brand"
+            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-[var(--color-text)] focus:outline-none focus:border-brand transition-colors"
             required
           />
         </div>
@@ -70,7 +74,7 @@ const RegisterPage = () => {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-[var(--color-text)] focus:outline-none focus:border-brand"
+            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-[var(--color-text)] focus:outline-none focus:border-brand transition-colors"
             required
             minLength={6}
           />
@@ -84,7 +88,7 @@ const RegisterPage = () => {
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-[var(--color-text)] focus:outline-none focus:border-brand"
+            className="w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-[var(--color-text)] focus:outline-none focus:border-brand transition-colors"
             required
           />
         </div>
@@ -104,6 +108,15 @@ const RegisterPage = () => {
           </Link>
         </p>
       </form>
+
+      {/* Модальное окно уведомлений */}
+      <AlertModal
+        isOpen={!!alert}
+        onClose={() => setAlert(null)}
+        title={alert?.title || ''}
+        message={alert?.message || ''}
+        type={alert?.type || 'info'}
+      />
     </div>
   )
 }

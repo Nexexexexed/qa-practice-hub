@@ -1,5 +1,3 @@
-// TaskPage.tsx – замените полностью
-
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import Editor from '@monaco-editor/react'
@@ -15,13 +13,15 @@ import {
   resetCode as resetReduxCode,
   clearTask,
   setShowPublish
-  } from '../store/taskDetailSlice'
+} from '../store/taskDetailSlice'
 import {
   fetchComments,
   addComment,
   publishSolution,
   setActiveTab,
 } from '../store/commentsSlice'
+
+import { CommentItem } from "../components/CommentItem"
 
 const TaskPage = () => {
   const { id } = useParams<{ id: string }>()
@@ -44,7 +44,6 @@ const TaskPage = () => {
     if (id) dispatch(fetchComments({ taskId: id, type: activeTab === 'comments' ? 'COMMENT' : 'SOLUTION' }))
   }, [id, activeTab, dispatch])
 
-
   const handleRun = () => {
     if (!user || !id) return
     dispatch(runTaskTest({ taskId: id, code }))
@@ -58,23 +57,23 @@ const TaskPage = () => {
     await dispatch(addComment({ taskId: id, content: newComment }))
     setNewComment('')
     setSubmitting(false)
+    dispatch(fetchComments({ taskId: id, type: 'COMMENT' }))
   }
 
-    const handlePublish = async () => {
+  const handlePublish = async () => {
     if (!publishComment.trim() || !id) return
     setSubmitting(true)
     try {
-        await dispatch(publishSolution({ taskId: id, content: publishComment }))
-        setSubmitting(false)
-        setShowPublishModal(false)
-        // Скрываем кнопку после успешной публикации
-        dispatch(setShowPublish(false)) // если нужно, добавьте этот экшен в слайс (уже есть clearTask?)
-        dispatch(fetchComments({ taskId: id, type: 'SOLUTION' }))
+      await dispatch(publishSolution({ taskId: id, content: publishComment }))
+      setSubmitting(false)
+      setShowPublishModal(false)
+      dispatch(setShowPublish(false))
+      dispatch(fetchComments({ taskId: id, type: 'SOLUTION' }))
     } catch (err: any) {
-        setSubmitting(false)
-        alert(err?.message || 'Ошибка при публикации')
+      setSubmitting(false)
+      alert(err?.message || 'Ошибка при публикации')
     }
-    }
+  }
 
   if (loading || !task) return <div className="text-center mt-20">Загрузка...</div>
   if (error) return <div className="text-red-500">{error}</div>
@@ -157,54 +156,51 @@ const TaskPage = () => {
             />
           </div>
 
-        {/* Результат */}
-        <div className={`bg-[var(--color-surface-alt)] rounded-xl p-4 border ${
+          {/* Результат */}
+          <div className={`bg-[var(--color-surface-alt)] rounded-xl p-4 border ${
             !result ? 'border-[var(--color-border)]' :
             isPassed ? 'border-green-500/30' : 'border-red-500/30'
-            }`}>
-            {/* Заголовок состояния */}
+          }`}>
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 {polling ? (
-                    <>
+                  <>
                     <div className="w-4 h-4 animate-pulse rounded-full bg-brand/30" />
                     <span className="font-semibold">Тесты выполняются...</span>
-                    </>
+                  </>
                 ) : result ? (
-                    <>
+                  <>
                     {isPassed ? <CheckCircle className="text-green-400" size={18} /> : <XCircle className="text-red-400" size={18} />}
                     <span className="font-semibold">{isPassed ? 'Все тесты пройдены!' : 'Тесты не пройдены'}</span>
                     <span className="text-sm text-[var(--color-text-muted)]">
-                        ({result.passedTests}/{result.totalTests})
+                      ({result.passedTests}/{result.totalTests})
                     </span>
-                    </>
+                  </>
                 ) : (
-                    <>
+                  <>
                     <div className="w-4 h-4" />
                     <span className="font-semibold">Тесты не запущены</span>
-                    </>
+                  </>
                 )}
-                </div>
-                {isPassed && showPublish && !polling && (
+              </div>
+              {isPassed && showPublish && !polling && (
                 <button
-                    onClick={() => setShowPublishModal(true)}
-                    className="flex items-center gap-1 px-3 py-1 bg-brand/20 text-brand rounded-lg hover:bg-brand/30 transition-colors text-sm"
+                  onClick={() => setShowPublishModal(true)}
+                  className="flex items-center gap-1 px-3 py-1 bg-brand/20 text-brand rounded-lg hover:bg-brand/30 transition-colors text-sm"
                 >
-                    <Lightbulb size={14} /> Опубликовать решение
+                  <Lightbulb size={14} /> Опубликовать решение
                 </button>
-                )}
+              )}
             </div>
-
-            {/* Блок логов */}
             <pre className="text-xs text-gray-400 bg-[var(--color-surface)] p-2 rounded mt-2 overflow-auto max-h-24 whitespace-pre-wrap font-mono">
-                {result
+              {result
                 ? result.errorLog || result.output || '// здесь будут логи вашего решения'
                 : '// здесь будут логи вашего решения'
-                }
+              }
             </pre>
-            </div>
-            </div>
+          </div>
         </div>
+      </div>
 
       {/* Уровень 3: Комментарии и Решения */}
       <div className="bg-[var(--color-surface-alt)] rounded-xl border border-[var(--color-border)] flex flex-col h-[400px]">
@@ -230,26 +226,8 @@ const TaskPage = () => {
             </p>
           )}
           {comments.map(c => (
-            <div key={c._id} className="bg-[var(--color-surface)] rounded-xl p-4 border border-[var(--color-border)]">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-full bg-brand/20 flex items-center justify-center text-xs text-brand font-bold">
-                    {c.userId?.username?.charAt(0).toUpperCase() || '?'}
-                  </div>
-                  <span className="text-sm font-medium">{c.userId?.username}</span>
-                  {c.type === 'SOLUTION' && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-brand/10 text-brand border border-brand/30">Решение</span>
-                  )}
-                </div>
-                <span className="text-xs text-[var(--color-text-muted)]">{new Date(c.createdAt).toLocaleDateString()}</span>
-              </div>
-              <p className="text-sm text-[var(--color-text)] whitespace-pre-wrap">{c.content}</p>
-              {c.code && (
-                <details className="mt-3">
-                  <summary className="text-xs text-brand cursor-pointer hover:underline">Показать код решения</summary>
-                  <pre className="mt-2 p-3 bg-black/30 rounded-lg text-xs overflow-x-auto"><code>{c.code}</code></pre>
-                </details>
-              )}
+            <div key={c._id}>
+              <CommentItem comment={c} taskId={id!} />
             </div>
           ))}
         </div>

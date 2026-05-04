@@ -6,9 +6,11 @@ interface CommentItem {
   type: 'COMMENT' | 'SOLUTION'
   content: string
   code?: string
+  parentId?: string
   userId: { _id: string; username: string }
-  createdAt: string
   likes: string[]
+  replies?: CommentItem[]
+  createdAt: string
 }
 
 interface CommentsState {
@@ -39,12 +41,36 @@ export const fetchComments = createAsyncThunk(
 
 export const addComment = createAsyncThunk(
   'comments/add',
-  async ({ taskId, content }: { taskId: string; content: string }, { rejectWithValue }) => {
+  async ({ taskId, content, parentId }: { taskId: string; content: string; parentId?: string }, { rejectWithValue }) => {
     try {
-      const { data } = await api.post(`/tasks/${taskId}/comments`, { content })
+      const { data } = await api.post(`/tasks/${taskId}/comments`, { content, parentId })
       return data
     } catch (err: any) {
       return rejectWithValue(err.response?.data?.error || 'Ошибка отправки комментария')
+    }
+  }
+)
+
+export const toggleLike = createAsyncThunk(
+  'comments/toggleLike',
+  async (commentId: string, { rejectWithValue }) => {
+    try {
+      const { data } = await api.post(`/comments/${commentId}/like`)
+      return { commentId, ...data }
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || 'Ошибка')
+    }
+  }
+)
+
+export const deleteComment = createAsyncThunk(
+  'comments/delete',
+  async (commentId: string, { rejectWithValue }) => {
+    try {
+      await api.delete(`/comments/${commentId}`)
+      return commentId
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || 'Ошибка удаления')
     }
   }
 )
@@ -78,8 +104,37 @@ const commentsSlice = createSlice({
         state.loading = false
         state.error = action.payload as string
       })
-      .addCase(addComment.fulfilled, (state) => {}) // после добавления снова fetchComments
-      .addCase(publishSolution.fulfilled, (state) => {})
+      .addCase(addComment.fulfilled, (state, action) => {
+        if (action.payload.parentId) {
+          // добавляем ответ в replies родителя
+          const parent = state.items.find(c => c._id === action.payload.parentId)
+          if (parent) {
+            if (!parent.replies) parent.replies = []
+            parent.replies.push(action.payload)
+          }
+        } else {
+          state.items.unshift(action.payload)
+        }
+      })
+      .addCase(toggleLike.fulfilled, (state, action) => {
+        const updateLikes = (comments: any[]) => {
+          for (const c of comments) {
+            if (c._id === action.payload.commentId) {
+              c.likes = action.payload.liked 
+                ? [...c.likes, 'current'] // временно, обновится при следующей загрузке
+                : c.likes.filter((id: string) => id !== 'current')
+            }
+            if (c.replies) updateLikes(c.replies)
+          }
+        }
+        updateLikes(state.items)
+      })
+      .addCase(deleteComment.fulfilled, (state, action) => {
+        state.items = state.items.filter(c => c._id !== action.payload)
+        for (const c of state.items) {
+          if (c.replies) c.replies = c.replies.filter((r: any) => r._id !== action.payload)
+        }
+      })
   },
 })
 

@@ -8,7 +8,7 @@ export interface IComment extends Document {
   type: CommentType;
   content: string;
   code?: string;
-  parentId?: mongoose.Types.ObjectId; // ID родительского комментария (для ответов)
+  parentId?: mongoose.Types.ObjectId;
   isPublic: boolean;
   likes: mongoose.Types.ObjectId[];
   createdAt: Date;
@@ -24,6 +24,19 @@ const commentSchema = new Schema<IComment>({
   parentId: { type: Schema.Types.ObjectId, ref: 'Comment', default: null },
   isPublic: { type: Boolean, default: true },
   likes: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Виртуальное поле для получения ответов
+commentSchema.virtual('replies', {
+  ref: 'Comment',
+  localField: '_id',
+  foreignField: 'parentId',
+  justOne: false,
+  options: { sort: { createdAt: 1 } }
+});
 
 export const Comment = mongoose.model<IComment>('Comment', commentSchema);

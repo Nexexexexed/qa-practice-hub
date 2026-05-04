@@ -8,6 +8,7 @@ export interface Task {
   difficulty: 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED'
   htmlContent: string
   starterCode: string
+  testCode?: string
   status: string
 }
 
